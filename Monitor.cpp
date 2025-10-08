@@ -28,9 +28,9 @@ private:
         }
         
         void process() {
-            std::cout << "Обработка данных: ID=" << id 
-                      << ", Сообщение: " << message 
-                      << ", Размер данных: " << data.size() << std::endl;
+            std::cout << "Data processing: ID=" << id 
+                      << ", Message: " << message 
+                      << ", Data size: " << data.size() << std::endl;
         }
     };
     
@@ -43,14 +43,14 @@ public:
                 std::unique_lock<std::mutex> lock(mtx);
                 cv.wait(lock, [this]() { return !event_ready; });
                 current_event = std::make_unique<NonSerializableData>(
-                    i, "Событие №" + std::to_string(i)
+                    i, "Event в„–" + std::to_string(i)
                 );
                 
                 event_ready = true;
-                std::cout << "Поставщик: отправил событие " << i << std::endl;
+                std::cout << "Supplier: sent the event " << i << std::endl;
+                 cv.notify_one();
             }
-            
-            cv.notify_one();
+           
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
 
@@ -58,8 +58,8 @@ public:
             std::lock_guard<std::mutex> lock(mtx);
             producer_finished = true;
             event_ready = true;
+            cv.notify_one();
         }
-        cv.notify_one();
     }
     
     void consumeEvents() {
@@ -77,18 +77,19 @@ public:
                     event_to_process = std::move(current_event);
                     event_ready = false;
                     
-                    std::cout << "Потребитель: получил событие " 
+                    std::cout << "Consumer: received the event " 
                               << event_to_process->id << std::endl;
+                    
+                    cv.notify_one();
                 }
             }
             
             if (event_to_process) {
                 event_to_process->process();
             }
-            cv.notify_one();
         }
         
-        std::cout << "Потребитель: завершил работу" << std::endl;
+        std::cout << "Consumer: completed work" << std::endl;
     }
 };
 
@@ -96,7 +97,7 @@ int main() {
     setlocale(LC_ALL, "Russian");
     EventMonitor monitor;
     
-    std::cout << "Запуск монитора событий..." << std::endl;
+    std::cout << "Launching the Event Monitor..." << std::endl;
     std::cout << "=================================" << std::endl;
     
     std::thread producer(&EventMonitor::produceEvents, &monitor, 5);
@@ -106,7 +107,7 @@ int main() {
     consumer.join();
     
     std::cout << "=================================" << std::endl;
-    std::cout << "Все события обработаны" << std::endl;
+    std::cout << "All events have been processed" << std::endl;
     
     return 0;
 }

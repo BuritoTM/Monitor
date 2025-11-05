@@ -84,37 +84,58 @@ public:
 
     bool setup_signal_handling() {
         struct sigaction sa;
-        memset(&sa, 0, sizeof(sa));
-        sa.sa_handler = signal_handler;
-        sigemptyset(&sa.sa_mask);
 
-        if (sigaction(SIGHUP, &sa, NULL) < 0) {
-            std::cerr << "Failed to set SIGHUP handler: " << strerror(errno) << std::endl;
-            return false;
-        }
-        if (sigaction(SIGINT, &sa, NULL) < 0) {
-            std::cerr << "Failed to set SIGINT handler: " << strerror(errno) << std::endl;
-            return false;
-        }
-        if (sigaction(SIGTERM, &sa, NULL) < 0) {
-            std::cerr << "Failed to set SIGTERM handler: " << strerror(errno) << std::endl;
-            return false;
+        const int signals[] = {SIGHUP, SIGINT, SIGTERM};
+
+        for (int sig : signals) {
+            if (sigaction(sig, NULL, &sa) < 0) {
+                std::cerr << "Failed to get current sigaction for signal " << sig
+                          << ": " << strerror(errno) << std::endl;
+                return false;
+            }
+
+            sa.sa_handler = signal_handler;
+
+            if (sigemptyset(&sa.sa_mask) < 0) {
+                std::cerr << "Failed to empty signal mask for signal " << sig
+                          << ": " << strerror(errno) << std::endl;
+                return false;
+            }
+
+            if (sigaddset(&sa.sa_mask, sig) < 0) {
+                std::cerr << "Failed to add signal to mask for signal " << sig
+                          << ": " << strerror(errno) << std::endl;
+                return false;
+            }
+
+            sa.sa_flags = 0;
+
+            if (sigaction(sig, &sa, NULL) < 0) {
+                std::cerr << "Failed to set sigaction for signal " << sig
+                          << ": " << strerror(errno) << std::endl;
+                return false;
+            }
+
+            std::cout << "Signal handler registered for signal " << sig << std::endl;
         }
 
         sigemptyset(&blocked_mask);
-        sigaddset(&blocked_mask, SIGHUP);
-        sigaddset(&blocked_mask, SIGINT);
-        sigaddset(&blocked_mask, SIGTERM);
+        for (int sig : signals) {
+            if (sigaddset(&blocked_mask, sig) < 0) {
+                std::cerr << "Failed to add signal " << sig << " to block mask: "
+                          << strerror(errno) << std::endl;
+                return false;
+            }
+        }
 
         if (sigprocmask(SIG_BLOCK, &blocked_mask, &original_mask) < 0) {
             std::cerr << "Failed to block signals: " << strerror(errno) << std::endl;
             return false;
         }
 
-        std::cout << "Signal handlers registered and signals blocked" << std::endl;
+        std::cout << "Signal handlers registered and signals blocked successfully" << std::endl;
         return true;
     }
-
     void run() {
         std::cout << "Server starting main loop..." << std::endl;
         std::cout << "Commands:" << std::endl;
@@ -135,7 +156,7 @@ public:
             }
 
             struct timespec timeout;
-            timeout.tv_sec = 1;  
+            timeout.tv_sec = 1;
             timeout.tv_nsec = 0;
 
             int activity = pselect(max_fd + 1, &read_fds, NULL, NULL, &timeout, &original_mask);
@@ -225,7 +246,7 @@ private:
                 ssize_t bytes_read = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
 
                 if (bytes_read > 0) {
-                    buffer[bytes_read] = '\0'; 
+                    buffer[bytes_read] = '\0';
 
                     std::cout << "Received " << bytes_read << " bytes from client (fd: "
                               << client_fd << "): " << buffer << std::endl;

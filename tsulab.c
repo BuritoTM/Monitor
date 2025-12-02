@@ -16,7 +16,7 @@ static ssize_t procfile_read(struct file *file_pointer, char __user *buffer,size
     ssize_t ret = len;
 
     if (*offset >= len) {
-        return 0;  // Конец файла
+        return 0; 
     }
 
     if (copy_to_user(buffer, s, len)) {
@@ -29,7 +29,6 @@ static ssize_t procfile_read(struct file *file_pointer, char __user *buffer,size
     return ret;
 }
 
-// Совместимость с разными версиями ядра
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
 static const struct proc_ops proc_file_fops = {
     .proc_read = procfile_read,
@@ -40,7 +39,6 @@ static const struct file_operations proc_file_fops = {
 };
 #endif
 
-// Функция инициализации модуля
 static int __init procfs1_init(void)
 {
     our_proc_file = proc_create(PROC_FS_NAME, 0644, NULL, &proc_file_fops);
@@ -54,7 +52,6 @@ static int __init procfs1_init(void)
     return 0;
 }
 
-// Функция очистки модуля
 static void __exit procfs1_exit(void)
 {
     proc_remove(our_proc_file);

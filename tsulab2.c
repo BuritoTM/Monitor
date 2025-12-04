@@ -4,8 +4,8 @@
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 #include <linux/version.h>
-#include <linux/smp.h>      // Для получения информации о процессоре
-#include <linux/cpumask.h>  // Для работы с масками процессоров
+#include <linux/smp.h>     
+#include <linux/cpumask.h> 
 
 #define PROC_FS_NAME "tsu"
 
@@ -17,15 +17,11 @@ static ssize_t procfile_read(struct file *file_pointer, char __user *buffer,
     char s[100];
     int len;
     ssize_t ret;
-
-    // Получаем количество доступных процессоров (ядер)
     unsigned int num_cpus = num_online_cpus();
-
-    // Формируем строку с количеством ядер
     len = snprintf(s, sizeof(s), "Number of CPU cores: %u\n", num_cpus);
 
     if (*offset >= len) {
-        return 0;  // Конец файла
+        return 0;
     }
 
     if (copy_to_user(buffer, s + *offset, len - *offset)) {
